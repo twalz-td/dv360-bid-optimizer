@@ -1,0 +1,1088 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>TravelDesk — DV360 Bid Optimizer</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,300;9..144,400;9..144,600;9..144,700&family=JetBrains+Mono:wght@400;500&family=Plus+Jakarta+Sans:wght@300;400;500;600&display=swap');
+
+:root {
+  --coral:#D4533A; --coral-dark:#b8422b; --coral-light:#F5E8E4; --coral-mid:#EAB5A8;
+  --ink:#1A1410; --ink2:#4A3F38; --ink3:#8C7E76; --ink4:#C4B8B2;
+  --paper:#FDFCFB; --paper2:#F7F3F0; --paper3:#EFE9E4; --paper4:#E5DDD7;
+  --white:#FFFFFF;
+  --emerald:#1A7A5E; --emerald-light:#E8F5F0; --emerald-mid:#A8D5C6;
+  --amber:#B8620A; --amber-light:#FEF3E2; --amber-mid:#F5C980;
+  --sky:#1A5FA8; --sky-light:#E8F0FB;
+  --border:#E0D6CF; --border2:#CEC3BB; --border3:#B8ABA2;
+  --shadow: 0 1px 3px rgba(26,20,16,0.06), 0 4px 12px rgba(26,20,16,0.04);
+  --shadow-md: 0 4px 16px rgba(26,20,16,0.08), 0 1px 4px rgba(26,20,16,0.05);
+  --mono:'JetBrains Mono',monospace;
+  --sans:'Plus Jakarta Sans',sans-serif;
+  --display:'Fraunces',serif;
+  --r:8px; --rl:12px; --rxl:20px;
+  --transition: all 0.18s cubic-bezier(0.4,0,0.2,1);
+}
+
+*{box-sizing:border-box;margin:0;padding:0;}
+body{font-family:var(--sans);background:var(--paper2);color:var(--ink);font-size:14px;line-height:1.6;min-height:100vh;overflow-x:hidden;}
+body::before{content:'';position:fixed;inset:0;background-image:radial-gradient(circle at 20% 50%, rgba(212,83,58,0.03) 0%, transparent 60%), radial-gradient(circle at 80% 20%, rgba(26,122,94,0.03) 0%, transparent 50%);pointer-events:none;z-index:0;}
+
+header{background:rgba(253,252,251,0.95);backdrop-filter:blur(20px);border-bottom:1px solid var(--border);padding:0 40px;height:64px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:100;box-shadow:0 1px 0 var(--border), 0 2px 8px rgba(26,20,16,0.04);}
+.la{display:flex;align-items:center;gap:16px;}
+.la-fallback{font-family:var(--display);font-size:16px;font-weight:600;color:var(--ink);letter-spacing:-.02em;}
+.ld{width:1px;height:20px;background:var(--border2);}
+.lapp{font-family:var(--mono);font-size:10px;color:var(--ink3);letter-spacing:.1em;text-transform:uppercase;}
+.snav{display:flex;align-items:center;}
+.si{display:flex;align-items:center;gap:8px;padding:8px 14px;color:var(--ink4);cursor:default;transition:var(--transition);position:relative;font-family:var(--mono);font-size:10px;letter-spacing:.04em;}
+.si+.si::before{content:'';position:absolute;left:0;top:50%;transform:translateY(-50%);width:1px;height:16px;background:var(--border);}
+.si.active{color:var(--ink);}
+.si.done{color:var(--coral);cursor:pointer;}
+.si.done:hover{background:var(--coral-light);border-radius:var(--r);}
+.snum{width:20px;height:20px;border-radius:50%;border:1.5px solid currentColor;display:flex;align-items:center;justify-content:center;font-size:9px;flex-shrink:0;transition:var(--transition);font-weight:600;}
+.si.active .snum{background:var(--coral);border-color:var(--coral);color:#fff;box-shadow:0 2px 8px rgba(212,83,58,0.3);}
+.si.done .snum{background:var(--coral);border-color:var(--coral);color:#fff;}
+.ab{font-family:var(--mono);font-size:10px;padding:5px 14px;border-radius:20px;border:1.5px solid var(--border2);color:var(--ink3);letter-spacing:.06em;transition:var(--transition);background:var(--paper3);}
+.ab.on{border-color:var(--coral);color:var(--coral);background:var(--coral-light);}
+
+main{padding:48px 40px;max-width:1340px;margin:0 auto;width:100%;position:relative;z-index:1;}
+.screen{display:none;animation:fadeIn .25s ease;}.screen.active{display:block;}
+@keyframes fadeIn{from{opacity:0;transform:translateY(6px);}to{opacity:1;transform:none;}}
+.pt{font-family:var(--display);font-size:34px;font-weight:600;letter-spacing:-.03em;margin-bottom:8px;line-height:1.1;color:var(--ink);}
+.pt strong{color:var(--coral);}
+.ps{font-size:14px;color:var(--ink3);margin-bottom:40px;max-width:600px;line-height:1.75;font-weight:300;}
+
+.card{background:var(--white);border:1px solid var(--border);border-radius:var(--rl);padding:28px;margin-bottom:16px;box-shadow:var(--shadow);}
+.ct{font-family:var(--mono);font-size:9px;font-weight:500;color:var(--ink3);letter-spacing:.14em;text-transform:uppercase;margin-bottom:20px;display:flex;align-items:center;gap:10px;}
+.ct::before{content:'';width:3px;height:12px;background:var(--coral);border-radius:2px;}
+
+label.fl{font-size:12px;color:var(--ink2);display:block;margin-bottom:6px;font-family:var(--mono);letter-spacing:.02em;font-weight:500;}
+input[type=text]{width:100%;background:var(--paper2);border:1.5px solid var(--border);border-radius:var(--r);padding:11px 14px;color:var(--ink);font-family:var(--mono);font-size:12px;outline:none;margin-bottom:16px;transition:var(--transition);}
+input[type=text]:focus{border-color:var(--coral);box-shadow:0 0 0 3px rgba(212,83,58,0.1);background:var(--white);}
+input[type=text]::placeholder{color:var(--ink4);}
+input[type=range]{width:100%;accent-color:var(--coral);cursor:pointer;}
+
+.btn{display:inline-flex;align-items:center;gap:8px;padding:10px 20px;border-radius:var(--r);font-family:var(--mono);font-size:11px;font-weight:500;cursor:pointer;border:1.5px solid var(--border2);background:var(--white);color:var(--ink2);transition:var(--transition);letter-spacing:.04em;white-space:nowrap;box-shadow:0 1px 2px rgba(26,20,16,0.06);}
+.btn:hover{border-color:var(--coral);color:var(--coral);background:var(--coral-light);}
+.btn:active{transform:scale(0.98);}
+.bp{background:var(--coral);border-color:var(--coral);color:#fff;box-shadow:0 2px 8px rgba(212,83,58,0.25);}
+.bp:hover{background:var(--coral-dark);border-color:var(--coral-dark);color:#fff;box-shadow:0 4px 16px rgba(212,83,58,0.3);}
+.bc{background:var(--emerald);border-color:var(--emerald);color:#fff;box-shadow:0 2px 8px rgba(26,122,94,0.25);}
+.bc:hover{background:#156a50;border-color:#156a50;color:#fff;}
+.btn:disabled{opacity:0.45;cursor:not-allowed;pointer-events:none;}
+
+.drop-zone{border:2px dashed var(--border2);border-radius:var(--rl);padding:56px 40px;text-align:center;cursor:pointer;transition:var(--transition);background:var(--paper2);}
+.drop-zone:hover,.drop-zone.drag-over{border-color:var(--coral);background:var(--coral-light);}
+.dz-icon{width:40px;height:40px;margin:0 auto 16px;color:var(--ink4);}
+.dz-icon svg{width:40px;height:40px;}
+.dz-text{font-size:14px;color:var(--ink2);margin-bottom:6px;font-weight:500;}
+.dz-hint{font-family:var(--mono);font-size:10px;color:var(--ink3);}
+
+.codeblk{background:var(--paper3);border:1px solid var(--border);border-radius:var(--r);padding:16px 18px;font-family:var(--mono);font-size:11px;color:var(--ink2);line-height:2;letter-spacing:.02em;}
+.codeblk span{color:var(--coral);font-weight:500;}
+.codeblk em{color:var(--ink3);}
+
+.pb-wrap{margin:24px 0;}
+.pb-track{height:4px;background:var(--paper3);border-radius:2px;overflow:hidden;}
+.pb-fill{height:100%;background:linear-gradient(90deg,var(--coral-dark),var(--coral));width:0%;transition:width .4s cubic-bezier(0.4,0,0.2,1);border-radius:2px;}
+.pb-labels{display:flex;justify-content:space-between;margin-top:10px;font-family:var(--mono);font-size:10px;color:var(--ink3);}
+.fetch-log{font-family:var(--mono);font-size:11px;color:var(--ink2);height:220px;overflow-y:auto;line-height:2.2;padding:12px 16px;background:var(--paper2);border-radius:var(--r);border:1px solid var(--border);}
+.fetch-log .log-ok{color:var(--emerald);font-weight:500;}
+.fetch-log .log-warn{color:var(--amber);font-weight:500;}
+.fetch-log .log-err{color:var(--coral);font-weight:500;}
+
+.tag{font-family:var(--mono);font-size:9px;padding:4px 10px;border-radius:20px;letter-spacing:.06em;text-transform:uppercase;font-weight:600;}
+.t-ok{background:var(--emerald-light);color:var(--emerald);border:1px solid var(--emerald-mid);}
+.t-warn{background:var(--amber-light);color:var(--amber);border:1px solid var(--amber-mid);}
+.t-er{background:var(--coral-light);color:var(--coral);border:1px solid var(--coral-mid);}
+.t-neu{background:var(--paper3);color:var(--ink3);border:1px solid var(--border2);}
+.t-up{background:var(--emerald-light);color:var(--emerald);border:1px solid var(--emerald-mid);}
+.t-dn{background:var(--amber-light);color:var(--amber);border:1px solid var(--amber-mid);}
+.t-hold{background:var(--paper3);color:var(--ink3);border:1px solid var(--border2);}
+.t-eol{background:var(--paper3);color:var(--ink3);border:1px solid var(--border2);}
+.t-hp{background:var(--emerald-light);color:var(--emerald);border:1px solid var(--emerald-mid);}
+.t-lp{background:var(--amber-light);color:var(--amber);border:1px solid var(--amber-mid);}
+
+.sav-hero{background:linear-gradient(135deg,var(--coral-light) 0%,var(--paper) 100%);border:1px solid var(--coral-mid);border-radius:var(--rxl);padding:40px;margin-bottom:24px;display:flex;align-items:center;gap:40px;}
+.sav-icon{font-size:48px;flex-shrink:0;}
+.sav-content{flex:1;}
+.sav-title{font-family:var(--display);font-size:28px;font-weight:600;letter-spacing:-.03em;color:var(--ink);margin-bottom:6px;}
+.sav-title strong{color:var(--coral);}
+.sav-sub{font-size:13px;color:var(--ink3);font-weight:300;}
+.sav-metrics{display:flex;gap:32px;margin-top:20px;flex-wrap:wrap;}
+.sav-met{display:flex;flex-direction:column;gap:4px;}
+.sm-label{font-family:var(--mono);font-size:9px;color:var(--ink3);letter-spacing:.1em;text-transform:uppercase;}
+.sm-val{font-family:var(--display);font-size:26px;font-weight:600;color:var(--ink);letter-spacing:-.03em;}
+.sm-sub{font-family:var(--mono);font-size:10px;color:var(--ink3);}
+
+.step-row{display:flex;align-items:center;gap:20px;padding:20px;background:var(--paper2);border:1px solid var(--border);border-radius:var(--rl);margin-bottom:20px;}
+.sr-label{font-family:var(--mono);font-size:10px;color:var(--ink3);letter-spacing:.08em;text-transform:uppercase;flex-shrink:0;width:60px;}
+.sr-val{font-family:var(--display);font-size:22px;font-weight:600;color:var(--coral);min-width:52px;text-align:right;}
+
+.rule-table{width:100%;border-collapse:collapse;font-size:12px;margin-bottom:0;}
+.rule-table th{font-family:var(--mono);font-size:9px;letter-spacing:.1em;text-transform:uppercase;color:var(--ink3);padding:10px 16px;text-align:left;border-bottom:1px solid var(--border);background:var(--paper2);}
+.rule-table td{padding:11px 16px;border-bottom:1px solid var(--border);vertical-align:middle;color:var(--ink2);font-size:12px;}
+.rule-table tr:last-child td{border-bottom:none;}
+.rule-table tr.rule-up td{background:rgba(26,122,94,0.03);}
+.rule-table tr.rule-dn td{background:rgba(184,98,10,0.03);}
+.rule-table tr.rule-hold td{background:transparent;}
+
+.filter-bar{display:flex;gap:8px;margin-bottom:20px;flex-wrap:wrap;}
+.fb-btn{font-family:var(--mono);font-size:10px;padding:6px 14px;border-radius:20px;border:1.5px solid var(--border2);background:var(--white);color:var(--ink3);cursor:pointer;transition:var(--transition);letter-spacing:.04em;}
+.fb-btn.active{border-color:var(--coral);background:var(--coral-light);color:var(--coral);}
+.fb-btn:hover{border-color:var(--coral);color:var(--coral);}
+
+.rev-table{width:100%;border-collapse:collapse;font-size:12px;}
+.rev-table th{font-family:var(--mono);font-size:9px;letter-spacing:.1em;text-transform:uppercase;color:var(--ink3);padding:10px 12px;text-align:left;border-bottom:1px solid var(--border);background:var(--paper2);white-space:nowrap;}
+.rev-table td{padding:10px 12px;border-bottom:1px solid var(--border);vertical-align:middle;color:var(--ink2);}
+.rev-table tr:last-child td{border-bottom:none;}
+.rev-table tr:hover td{background:var(--paper2);}
+.rev-table .mono{font-family:var(--mono);font-size:11px;}
+.li-name{color:var(--ink);font-weight:600;font-size:11px;max-width:240px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;display:block;}
+.li-sub{color:var(--ink3);font-size:9px;font-family:var(--mono);margin-top:2px;}
+.cpm-old{color:var(--ink4);text-decoration:line-through;font-size:10px;}
+.cpm-new-up{color:var(--emerald);font-weight:600;}
+.cpm-new-dn{color:var(--amber);font-weight:600;}
+.cpm-new-hold{color:var(--ink3);}
+
+/* delivery bar */
+.del-bar-wrap{display:flex;align-items:center;gap:8px;}
+.del-bar-track{width:56px;height:5px;background:var(--paper3);border-radius:3px;overflow:hidden;flex-shrink:0;}
+.del-bar-fill{height:100%;border-radius:3px;}
+
+.receipt-table{width:100%;border-collapse:collapse;font-size:12px;}
+.receipt-table th{font-family:var(--mono);font-size:9px;letter-spacing:.1em;text-transform:uppercase;color:var(--ink3);padding:10px 14px;text-align:left;border-bottom:1px solid var(--border);background:var(--paper2);}
+.receipt-table td{padding:11px 14px;border-bottom:1px solid var(--border);vertical-align:middle;color:var(--ink2);}
+.receipt-table tr:last-child td{border-bottom:none;}
+.receipt-table tr:hover td{background:var(--paper2);}
+
+.flex-row{display:flex;align-items:center;gap:12px;flex-wrap:wrap;}
+.four-col{display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:16px;}
+.five-col{display:grid;grid-template-columns:1fr 1fr 1fr 1fr 1fr;gap:16px;}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="la">
+    <span class="la-fallback">TravelDesk</span>
+    <div class="ld"></div>
+    <span class="lapp">Bid Optimizer</span>
+  </div>
+  <nav class="snav">
+    <div class="si active" id="sn-1"><span class="snum">1</span>Setup</div>
+    <div class="si" id="sn-2"><span class="snum">2</span>Upload</div>
+    <div class="si" id="sn-3"><span class="snum">3</span>Fetch</div>
+    <div class="si" id="sn-4"><span class="snum">4</span>Review</div>
+    <div class="si" id="sn-5"><span class="snum">5</span>Push</div>
+  </nav>
+  <div id="auth-badge" class="ab">NOT AUTHENTICATED</div>
+</header>
+
+<main>
+
+<!-- ══ SCREEN 1: SETUP ══════════════════════════════════════════════════════ -->
+<div class="screen active" id="screen-1">
+  <h1 class="pt">DV360 <strong>Bid Optimizer</strong></h1>
+  <p class="ps">Adjusts live CPM bids based on CVR performance, delivery pacing, and campaign end date. Live bids and daily impression budgets are always fetched from the DV360 API.</p>
+
+  <div class="card">
+    <div class="ct">Decision Logic</div>
+    <table class="rule-table">
+      <thead>
+        <tr>
+          <th>Days Remaining</th>
+          <th>Performance</th>
+          <th>Delivery (yesterday / daily budget)</th>
+          <th>Action</th>
+          <th>Rationale</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr class="rule-hold">
+          <td><span class="tag t-er">≤ 3 days</span></td>
+          <td>Any</td>
+          <td>Any</td>
+          <td><span class="tag t-hold">— Hold</span></td>
+          <td style="color:var(--ink3);">Protect delivery near end of flight</td>
+        </tr>
+        <tr class="rule-up">
+          <td><span class="tag t-ok">&gt; 3 days</span></td>
+          <td><span class="tag t-hp">High Performer</span></td>
+          <td>&lt; 80%</td>
+          <td><span class="tag t-up">↑ Bid Up</span></td>
+          <td style="color:var(--ink3);">CVR above goal, room to buy more delivery</td>
+        </tr>
+        <tr class="rule-hold">
+          <td><span class="tag t-ok">&gt; 3 days</span></td>
+          <td><span class="tag t-hp">High Performer</span></td>
+          <td>80–95%</td>
+          <td><span class="tag t-hold">— Hold</span></td>
+          <td style="color:var(--ink3);">Pacing well, no intervention needed</td>
+        </tr>
+        <tr class="rule-dn">
+          <td><span class="tag t-ok">&gt; 3 days</span></td>
+          <td><span class="tag t-hp">High Performer</span></td>
+          <td>&gt; 95%</td>
+          <td><span class="tag t-dn">↓ Bid Down</span></td>
+          <td style="color:var(--ink3);">Capping — higher bid buys same volume at higher CPM</td>
+        </tr>
+        <tr class="rule-dn">
+          <td><span class="tag t-ok">&gt; 3 days</span></td>
+          <td><span class="tag t-lp">Low Performer</span></td>
+          <td>&gt; 95%</td>
+          <td><span class="tag t-dn">↓ Bid Down</span></td>
+          <td style="color:var(--ink3);">CVR below goal and capping — reduce CPM waste</td>
+        </tr>
+        <tr class="rule-hold">
+          <td><span class="tag t-ok">&gt; 3 days</span></td>
+          <td><span class="tag t-lp">Low Performer</span></td>
+          <td>≤ 95%</td>
+          <td><span class="tag t-hold">— Hold</span></td>
+          <td style="color:var(--ink3);">Not capping — bid reduction risks further under-delivery</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="card">
+    <div class="ct">OAuth2 Authentication</div>
+    <p style="font-size:13px;color:var(--ink3);margin-bottom:20px;line-height:1.8;">Authenticate with your Google account to access the DV360 API. Your token is stored in memory only and never persisted.</p>
+    <label class="fl">OAuth2 Client ID</label>
+    <input type="text" id="client-id-input" placeholder="123456789-abcdef.apps.googleusercontent.com" style="margin-bottom:0;">
+    <p style="font-family:var(--mono);font-size:10px;color:var(--ink3);margin-top:6px;margin-bottom:20px;">Required scope: <code style="background:var(--paper3);padding:1px 6px;border-radius:4px;">https://www.googleapis.com/auth/display-video</code></p>
+    <div class="flex-row">
+      <button class="btn bp" onclick="startOAuth()">Authenticate with Google</button>
+      <button class="btn" onclick="useDemo()">▶ Demo Mode</button>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="ct">BigQuery Export Columns</div>
+    <p style="font-size:12px;color:var(--ink3);margin-bottom:16px;">Upload a CSV or TSV with these columns. Headers matched case-insensitively. Live bid and daily impression budget are always fetched from the API.</p>
+    <div class="codeblk">
+      <span>Line_Item_ID</span> &nbsp;·&nbsp; <span>Insertion_Order_ID</span> &nbsp;·&nbsp; <span>Advertiser_ID</span> &nbsp;·&nbsp; <span>Advertiser</span><br>
+      <span>Line_Item</span> &nbsp;·&nbsp; <span>Insertion_Order</span> &nbsp;·&nbsp; <span>days_remaining</span><br>
+      <span>conversion_rate_7d</span> &nbsp;·&nbsp; <span>io_kpi_conversion_rate</span> &nbsp;·&nbsp; <span>performance_indicator</span><br>
+      <span>impressions_yesterday</span> &nbsp;·&nbsp; <span>cpm_7d</span> &nbsp;<em>// reference only</em>
+    </div>
+  </div>
+</div>
+
+<!-- ══ SCREEN 2: UPLOAD ══════════════════════════════════════════════════════ -->
+<div class="screen" id="screen-2">
+  <h1 class="pt">Upload <strong>BQ Export</strong></h1>
+  <p class="ps">Drop your BigQuery CSV or TSV export. Set your bid step percentage before proceeding to the fetch step.</p>
+
+  <div class="card">
+    <div class="ct">Bid Step Percentage</div>
+    <div class="step-row">
+      <span class="sr-label">Step</span>
+      <input type="range" id="step-slider" min="1" max="30" value="10" oninput="updateStep(this.value)" style="flex:1;">
+      <span class="sr-val" id="step-display">10%</span>
+    </div>
+    <p style="font-family:var(--mono);font-size:10px;color:var(--ink3);">
+      Bid-up: live bid × (1 + step/100) &nbsp;·&nbsp; Bid-down: live bid × (1 − step/100)<br>
+      Floor: $0.50 (500,000 micros) &nbsp;·&nbsp; Ceiling: $50.00 (50,000,000 micros)
+    </p>
+  </div>
+
+  <div class="card">
+    <div class="ct">File Upload</div>
+    <div class="drop-zone" id="drop-zone" onclick="document.getElementById('file-input').click()" ondragover="dzOver(event)" ondragleave="dzLeave()" ondrop="dzDrop(event)">
+      <div class="dz-icon">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+          <path d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"/>
+        </svg>
+      </div>
+      <div class="dz-text">Drop CSV / TSV here or click to browse</div>
+      <div class="dz-hint" id="dz-filename">No file selected</div>
+    </div>
+    <input type="file" id="file-input" accept=".csv,.tsv,.txt" style="display:none" onchange="handleFile(this.files[0])">
+  </div>
+
+  <div class="card" id="parse-preview" style="display:none;">
+    <div class="ct">Parse Preview</div>
+    <div id="parse-stats"></div>
+    <div style="margin-top:20px;">
+      <button class="btn bp" onclick="goToFetch()">Fetch Live Data →</button>
+    </div>
+  </div>
+</div>
+
+<!-- ══ SCREEN 3: FETCH ═══════════════════════════════════════════════════════ -->
+<div class="screen" id="screen-3">
+  <h1 class="pt">Fetching <strong>Live Data</strong></h1>
+  <p class="ps">Each line item fetches two fields from DV360: the current bid (from <code style="background:var(--paper3);padding:1px 5px;border-radius:4px;font-size:11px;">bidStrategy</code>) and the daily impression budget (from <code style="background:var(--paper3);padding:1px 5px;border-radius:4px;font-size:11px;">budget.maxAmount</code>). Delivery ratio is then calculated client-side against <code style="background:var(--paper3);padding:1px 5px;border-radius:4px;font-size:11px;">impressions_yesterday</code>. Up to 10 concurrent requests.</p>
+
+  <div class="card">
+    <div class="ct">Progress</div>
+    <div class="pb-wrap">
+      <div class="pb-track"><div class="pb-fill" id="fetch-pb"></div></div>
+      <div class="pb-labels"><span id="fetch-pb-done">0 fetched</span><span id="fetch-pb-total"></span></div>
+    </div>
+    <div class="fetch-log" id="fetch-log"></div>
+    <div style="margin-top:16px;">
+      <button class="btn bp" id="btn-go-review" style="display:none;" onclick="goToReview()">Review Recommendations →</button>
+    </div>
+  </div>
+</div>
+
+<!-- ══ SCREEN 4: REVIEW ══════════════════════════════════════════════════════ -->
+<div class="screen" id="screen-4">
+  <h1 class="pt">Review <strong>Bid Changes</strong></h1>
+  <p class="ps">Inspect every recommendation before pushing. Toggle individual line items. Only checked items will be patched.</p>
+
+  <div class="sav-hero">
+    <div class="sav-icon">🎯</div>
+    <div class="sav-content">
+      <div class="sav-title">Ready to <strong>optimize</strong></div>
+      <div class="sav-sub">Review the recommendations below and push when ready</div>
+      <div class="sav-metrics" id="hero-metrics"></div>
+    </div>
+  </div>
+
+  <div class="filter-bar">
+    <button class="fb-btn active" onclick="setFilter('all',this)">All</button>
+    <button class="fb-btn" onclick="setFilter('up',this)">↑ Bid Up</button>
+    <button class="fb-btn" onclick="setFilter('down',this)">↓ Bid Down</button>
+    <button class="fb-btn" onclick="setFilter('hold',this)">— Hold</button>
+    <button class="fb-btn" onclick="setFilter('eol',this)">⏱ End of Flight</button>
+    <button class="fb-btn" onclick="setFilter('error',this)">✗ Errors</button>
+  </div>
+
+  <div class="card">
+    <div class="ct">Line Items</div>
+    <div style="overflow-x:auto;">
+      <table class="rev-table">
+        <thead>
+          <tr>
+            <th><input type="checkbox" id="chk-all" onchange="toggleAll(this.checked)" title="Select all actionable"></th>
+            <th>Line Item</th>
+            <th>Client</th>
+            <th>Days</th>
+            <th>Perf.</th>
+            <th>CVR 7d</th>
+            <th>IO Goal</th>
+            <th>Yest. Imps</th>
+            <th>Daily Budget</th>
+            <th>Delivery</th>
+            <th>BQ CPM</th>
+            <th>Live Bid</th>
+            <th>New Bid</th>
+            <th>Action</th>
+            <th>Type</th>
+          </tr>
+        </thead>
+        <tbody id="review-tbody"></tbody>
+      </table>
+    </div>
+    <div style="margin-top:20px;display:flex;gap:12px;align-items:center;flex-wrap:wrap;">
+      <button class="btn bp" onclick="goToPush()">Push Selected →</button>
+      <button class="btn" onclick="exportAuditCSV()">↓ Export Audit CSV</button>
+      <span id="sel-count" style="font-family:var(--mono);font-size:10px;color:var(--ink3);margin-left:auto;"></span>
+    </div>
+  </div>
+</div>
+
+<!-- ══ SCREEN 5: PUSH ════════════════════════════════════════════════════════ -->
+<div class="screen" id="screen-5">
+  <h1 class="pt">Pushing <strong>Bid Updates</strong></h1>
+  <p class="ps">Updates applied sequentially via individual PATCH calls to the DV360 v4 API.</p>
+
+  <div class="card">
+    <div class="ct">Push Log</div>
+    <div class="pb-wrap">
+      <div class="pb-track"><div class="pb-fill" id="push-pb"></div></div>
+      <div class="pb-labels"><span id="push-pb-done">0 pushed</span><span id="push-pb-total"></span></div>
+    </div>
+    <div class="fetch-log" id="push-log"></div>
+    <div style="margin-top:16px;">
+      <button class="btn bp" id="btn-start-push" onclick="executePush()">▶ Start Push</button>
+    </div>
+  </div>
+
+  <div id="push-receipt" style="display:none;">
+    <div class="card">
+      <div class="ct">Push Receipt &nbsp;<span id="receipt-timestamp" style="color:var(--ink4);font-weight:400;"></span></div>
+      <div class="sav-metrics" id="receipt-summary" style="margin-bottom:28px;"></div>
+      <div style="overflow-x:auto;">
+        <table class="receipt-table">
+          <thead>
+            <tr>
+              <th>Line Item</th>
+              <th>Client</th>
+              <th>Action</th>
+              <th>Bid Type</th>
+              <th>Sent Bid</th>
+              <th>Confirmed Bid</th>
+              <th>Status</th>
+              <th>Error</th>
+            </tr>
+          </thead>
+          <tbody id="receipt-tbody"></tbody>
+        </table>
+      </div>
+      <div style="margin-top:20px;display:flex;gap:12px;">
+        <button class="btn" onclick="downloadPushReceipt()">↓ Download Receipt CSV</button>
+        <button class="btn" onclick="goTo(1)">← Start Over</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+</main>
+<script>
+'use strict';
+
+const S = {
+  tok: null,
+  demo: false,
+  stepPct: 10,
+  rows: [],
+  LIs: [],
+  accepted: {},
+  pushReceipt: null,
+  currentFilter: 'all'
+};
+
+const FLOOR_MICROS   = 500000;
+const CEILING_MICROS = 50000000;
+const MICROS = 1e6;
+const EOL_DAYS = 3;
+const UNDER_THRESHOLD = 0.80;
+const OVER_THRESHOLD  = 0.95;
+
+const fmtBid  = m => '$' + (m / MICROS).toFixed(2);
+const toMicros = d => Math.round(d * MICROS);
+const fmtPct  = v => (v === null || v === undefined || isNaN(v)) ? '—' : (v * 100).toFixed(2) + '%';
+const fmtN    = n => Number(n).toLocaleString();
+const clamp   = (v, lo, hi) => Math.max(lo, Math.min(hi, v));
+const norm    = k => k.toLowerCase().replace(/[^a-z0-9]/g,'_').replace(/_+/g,'_').replace(/^_|_$/g,'');
+const esc     = s => String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+
+const COL_ALIASES = {
+  li_id:        ['line_item_id','li_id','liid'],
+  io_id:        ['insertion_order_id','io_id','ioid'],
+  advertiser_id:['advertiser_id','adv_id','advertiserid'],
+  advertiser:   ['advertiser','client','client_name','advertiser_name'],
+  li_name:      ['line_item','li_name','line_item_name'],
+  io_name:      ['insertion_order','io_name','insertion_order_name'],
+  cvr:          ['conversion_rate_7d','cvr_7d','cvr','conversion_rate'],
+  io_cvr_goal:  ['io_kpi_conversion_rate','io_cvr_goal','io_cvr','kpi_cvr'],
+  performance:  ['performance_indicator','performance','perf_indicator'],
+  days_remaining:['days_remaining','days_left','days_rem'],
+  imps_yesterday:['impressions_yesterday','yesterday_imps','imps_yesterday'],
+  cpm_7d:       ['cpm_7d','cpm','avg_cpm','cpm7d']
+};
+
+function resolveCol(headers, key) {
+  for (const a of (COL_ALIASES[key] || [key])) {
+    const idx = headers.indexOf(norm(a));
+    if (idx >= 0) return idx;
+  }
+  return -1;
+}
+
+function goTo(n) {
+  document.querySelectorAll('.screen').forEach((s,i) => s.classList.toggle('active', i+1===n));
+  document.querySelectorAll('.si').forEach((s,i) => {
+    s.classList.remove('active','done');
+    if (i+1 < n)  s.classList.add('done');
+    if (i+1 === n) s.classList.add('active');
+  });
+  window.scrollTo(0,0);
+}
+
+// ── OAUTH ──────────────────────────────────────────────────────────────────────
+function startOAuth() {
+  const cid = document.getElementById('client-id-input').value.trim();
+  if (!cid) { alert('Enter your OAuth2 Client ID first.'); return; }
+  const p = new URLSearchParams({
+    client_id: cid,
+    redirect_uri: location.origin + location.pathname,
+    response_type: 'token',
+    scope: 'https://www.googleapis.com/auth/display-video',
+    include_granted_scopes: 'true'
+  });
+  location.href = 'https://accounts.google.com/o/oauth2/v2/auth?' + p;
+}
+function useDemo() {
+  S.tok = 'DEMO'; S.demo = true;
+  document.getElementById('auth-badge').textContent = 'DEMO MODE';
+  document.getElementById('auth-badge').classList.add('on');
+  goTo(2);
+}
+function checkOAuthCallback() {
+  const params = new URLSearchParams(location.hash.slice(1));
+  const tok = params.get('access_token');
+  if (tok) {
+    S.tok = tok;
+    history.replaceState(null,'',location.pathname);
+    document.getElementById('auth-badge').textContent = 'AUTHENTICATED';
+    document.getElementById('auth-badge').classList.add('on');
+    goTo(2);
+  }
+}
+
+// ── STEP SLIDER ────────────────────────────────────────────────────────────────
+function updateStep(v) {
+  S.stepPct = parseInt(v);
+  document.getElementById('step-display').textContent = v + '%';
+}
+
+// ── DROP ZONE ─────────────────────────────────────────────────────────────────
+function dzOver(e)  { e.preventDefault(); document.getElementById('drop-zone').classList.add('drag-over'); }
+function dzLeave()  { document.getElementById('drop-zone').classList.remove('drag-over'); }
+function dzDrop(e)  { e.preventDefault(); dzLeave(); if (e.dataTransfer.files[0]) handleFile(e.dataTransfer.files[0]); }
+
+function handleFile(file) {
+  if (!file) return;
+  document.getElementById('dz-filename').textContent = file.name;
+  const r = new FileReader();
+  r.onload = e => parseCSV(e.target.result, file.name);
+  r.readAsText(file);
+}
+
+function parseCSV(text, filename) {
+  const isTsv = filename.endsWith('.tsv') || (text.indexOf('\t') > -1 && text.indexOf(',') === -1);
+  const sep = isTsv ? '\t' : ',';
+  const lines = text.trim().split(/\r?\n/).filter(l => l.trim());
+  if (lines.length < 2) { alert('File appears empty.'); return; }
+
+  const rawH = lines[0].split(sep).map(h => norm(h.replace(/^"|"$/g,'')));
+  const cols = {};
+  for (const k of Object.keys(COL_ALIASES)) cols[k] = resolveCol(rawH, k);
+
+  const required = ['li_id','io_id','advertiser_id','cvr','io_cvr_goal','performance','days_remaining','imps_yesterday'];
+  const missing = required.filter(k => cols[k] < 0);
+  if (missing.length) {
+    alert('Missing required columns:\n' + missing.join(', ') + '\n\nFound headers:\n' + rawH.join(', '));
+    return;
+  }
+
+  S.rows = [];
+  let skipped = 0;
+  for (let i = 1; i < lines.length; i++) {
+    const cells = splitLine(lines[i], sep);
+    const get = k => cols[k] >= 0 ? (cells[cols[k]] || '').replace(/^"|"$/g,'').trim() : '';
+    const liId = get('li_id'), ioId = get('io_id'), advId = get('advertiser_id');
+    if (!liId || !ioId || !advId) { skipped++; continue; }
+    const cpmRaw = get('cpm_7d');
+    S.rows.push({
+      liId, ioId, advId,
+      advertiser:    get('advertiser') || advId,
+      liName:        get('li_name') || liId,
+      ioName:        get('io_name') || ioId,
+      cvr:           parseFloat(get('cvr')) || 0,
+      ioCvrGoal:     parseFloat(get('io_cvr_goal')) || 0,
+      performance:   get('performance'),
+      daysRemaining: parseInt(get('days_remaining')) || 0,
+      impsYesterday: parseInt(get('imps_yesterday')) || 0,
+      cpm7d:         cpmRaw ? parseFloat(cpmRaw) : null
+    });
+  }
+
+  if (!S.rows.length) { alert('No valid rows parsed. Check column names.'); return; }
+
+  const eol      = S.rows.filter(r => r.daysRemaining <= EOL_DAYS).length;
+  const highPerf = S.rows.filter(r => r.performance === 'High Performer').length;
+  const lowPerf  = S.rows.filter(r => r.performance === 'Low Performer').length;
+
+  document.getElementById('parse-stats').innerHTML =
+    '<div class="four-col">' +
+    statBox('Total LIs',       S.rows.length,     'line items') +
+    statBox('High Performer',  highPerf,           'candidates to bid up') +
+    statBox('Low Performer',   lowPerf,            'candidates to bid down') +
+    statBox('End of Flight',   eol,                '≤ ' + EOL_DAYS + ' days — will hold') +
+    '</div>';
+  document.getElementById('parse-preview').style.display = 'block';
+}
+
+function splitLine(line, sep) {
+  if (sep !== ',') return line.split('\t');
+  const out = []; let cur = ''; let q = false;
+  for (let i = 0; i < line.length; i++) {
+    const c = line[i];
+    if (c === '"') q = !q;
+    else if (c === ',' && !q) { out.push(cur); cur = ''; }
+    else cur += c;
+  }
+  out.push(cur);
+  return out;
+}
+
+function statBox(label, val, sub) {
+  return '<div class="sav-met"><div class="sm-label">' + label + '</div>' +
+    '<div class="sm-val" style="font-size:22px;">' + fmtN(val) + '</div>' +
+    '<div class="sm-sub">' + sub + '</div></div>';
+}
+
+// ── FETCH LIVE DATA ───────────────────────────────────────────────────────────
+async function goToFetch() {
+  if (!S.tok) { alert('Not authenticated.'); return; }
+  goTo(3);
+  await runFetch();
+}
+
+async function runFetch() {
+  const logEl   = document.getElementById('fetch-log');
+  const pbFill  = document.getElementById('fetch-pb');
+  const pbDone  = document.getElementById('fetch-pb-done');
+  const pbTotal = document.getElementById('fetch-pb-total');
+  logEl.innerHTML = '';
+
+  S.LIs = S.rows.map(r => ({
+    ...r,
+    liveBidMicros:  null,
+    bidType:        null,
+    dailyBudget:    null,   // budget.maxAmount (daily impression cap from API)
+    deliveryRatio:  null,
+    fetchError:     null,
+    action:         'hold',
+    newBidMicros:   null
+  }));
+
+  const total = S.LIs.length;
+  pbTotal.textContent = total + ' line items';
+  let done = 0, idx = 0;
+  const CONCURRENCY = 10;
+
+  async function worker() {
+    while (idx < S.LIs.length) {
+      const li = S.LIs[idx++];
+
+      if (S.tok === 'DEMO') {
+        await new Promise(r => setTimeout(r, 15 + Math.random()*50));
+        // Simulate live bid ~= cpm_7d × some factor
+        const demoBid = li.cpm7d !== null
+          ? toMicros(li.cpm7d * (0.8 + Math.random() * 0.4))
+          : toMicros(1 + Math.random() * 6);
+        li.liveBidMicros = clamp(Math.round(demoBid), FLOOR_MICROS, CEILING_MICROS);
+        li.bidType = Math.random() > 0.4 ? 'fixed' : 'maxSpend';
+        // Simulate daily budget: impsYesterday / random delivery ratio
+        const demoDr = 0.4 + Math.random() * 0.7;
+        li.dailyBudget = li.impsYesterday > 0
+          ? Math.round(li.impsYesterday / demoDr)
+          : Math.round(1000 + Math.random() * 9000);
+        logEl.innerHTML += li.liId + ' → bid <span class="log-ok">' + fmtBid(li.liveBidMicros) +
+          '</span> · budget <span class="log-ok">' + fmtN(li.dailyBudget) + ' imps ✓ demo</span><br>';
+      } else {
+        try {
+          const url = 'https://displayvideo.googleapis.com/v4/advertisers/' + li.advId +
+                      '/lineItems/' + li.liId +
+                      '?fields=bidStrategy,budget';
+          const res = await fetch(url, { headers: { Authorization: 'Bearer ' + S.tok } });
+          const data = await res.json();
+          if (!res.ok) throw new Error(data.error?.message || res.status);
+
+          // Extract bid
+          const { micros, type } = extractBid(data);
+          if (micros === null) throw new Error('No adjustable CPM bid found');
+          li.liveBidMicros = micros;
+          li.bidType = type;
+
+          // Extract daily impression budget
+          // budget.maxAmount is the fixed daily impression cap (integer string)
+          const budgetMax = data.budget?.maxAmount;
+          li.dailyBudget = budgetMax ? parseInt(budgetMax) : null;
+
+          logEl.innerHTML += li.liId + ' → bid <span class="log-ok">' + fmtBid(micros) +
+            '</span> · budget <span class="log-ok">' +
+            (li.dailyBudget !== null ? fmtN(li.dailyBudget) + ' imps' : 'no budget cap') +
+            ' ✓</span><br>';
+        } catch(err) {
+          li.fetchError = err.message;
+          logEl.innerHTML += li.liId + ' <span class="log-err">✗ ' + err.message + '</span><br>';
+        }
+      }
+
+      // Compute delivery ratio immediately after fetch
+      if (li.dailyBudget && li.dailyBudget > 0) {
+        li.deliveryRatio = li.impsYesterday / li.dailyBudget;
+      }
+
+      done++;
+      pbFill.style.width = (done/total*100) + '%';
+      pbDone.textContent = done + ' fetched';
+      logEl.scrollTop = logEl.scrollHeight;
+    }
+  }
+
+  await Promise.all(Array.from({ length: Math.min(CONCURRENCY, total) }, () => worker()));
+  computeRecommendations();
+  document.getElementById('btn-go-review').style.display = 'inline-flex';
+}
+
+function extractBid(data) {
+  const bs = data.bidStrategy || {};
+  if (bs.fixedBid?.bidAmountMicros)
+    return { micros: parseInt(bs.fixedBid.bidAmountMicros), type: 'fixed' };
+  if (bs.maximizeSpendAutoBid?.maxAverageCpmBidAmountMicros)
+    return { micros: parseInt(bs.maximizeSpendAutoBid.maxAverageCpmBidAmountMicros), type: 'maxSpend' };
+  return { micros: null, type: 'unknown' };
+}
+
+// ── COMPUTE RECOMMENDATIONS ───────────────────────────────────────────────────
+function computeRecommendations() {
+  const step = S.stepPct / 100;
+  for (const li of S.LIs) {
+    S.accepted[li.liId] = false;
+    li.newBidMicros = li.liveBidMicros;
+
+    if (li.fetchError || li.liveBidMicros === null) {
+      li.action = 'error';
+      continue;
+    }
+
+    // Gate 1: end of flight — touch nothing
+    if (li.daysRemaining <= EOL_DAYS) {
+      li.action = 'eol';
+      continue;
+    }
+
+    const dr         = li.deliveryRatio;
+    const isHigh     = li.performance === 'High Performer';
+    const isLow      = li.performance === 'Low Performer';
+    const underDel   = dr !== null && dr < UNDER_THRESHOLD;
+    const overDel    = dr !== null && dr > OVER_THRESHOLD;
+
+    if (isHigh && underDel) {
+      // High performer, room to grow — bid up
+      const proposed = clamp(Math.round(li.liveBidMicros * (1 + step)), FLOOR_MICROS, CEILING_MICROS);
+      if (proposed > li.liveBidMicros) {
+        li.action = 'up';
+        li.newBidMicros = proposed;
+        S.accepted[li.liId] = true;
+      } else {
+        li.action = 'hold'; // already at ceiling
+      }
+    } else if ((isHigh || isLow) && overDel) {
+      // Capping regardless of performance — bid down to reduce CPM waste
+      const proposed = clamp(Math.round(li.liveBidMicros * (1 - step)), FLOOR_MICROS, CEILING_MICROS);
+      if (proposed < li.liveBidMicros) {
+        li.action = 'down';
+        li.newBidMicros = proposed;
+        S.accepted[li.liId] = true;
+      } else {
+        li.action = 'hold'; // already at floor
+      }
+    } else {
+      li.action = 'hold';
+    }
+  }
+}
+
+// ── REVIEW ────────────────────────────────────────────────────────────────────
+function goToReview() {
+  goTo(4);
+  renderReview();
+}
+
+function renderReview() {
+  const ups   = S.LIs.filter(l => l.action === 'up').length;
+  const downs = S.LIs.filter(l => l.action === 'down').length;
+  const holds = S.LIs.filter(l => l.action === 'hold').length;
+  const eols  = S.LIs.filter(l => l.action === 'eol').length;
+  const errs  = S.LIs.filter(l => l.action === 'error').length;
+
+  document.getElementById('hero-metrics').innerHTML =
+    metHtml('Bid Up',         ups,   'var(--emerald)') +
+    metHtml('Bid Down',       downs, 'var(--amber)')   +
+    metHtml('No Change',      holds, 'var(--ink3)')    +
+    metHtml('End of Flight',  eols,  'var(--ink4)')    +
+    (errs ? metHtml('Errors', errs,  'var(--coral)') : '');
+
+  renderReviewTable(S.currentFilter);
+  updateSelCount();
+}
+
+function metHtml(label, val, color) {
+  return '<div class="sav-met"><div class="sm-label">' + label + '</div>' +
+    '<div class="sm-val" style="color:' + color + ';font-size:22px;">' + val + '</div></div>';
+}
+
+function setFilter(f, el) {
+  S.currentFilter = f;
+  document.querySelectorAll('.fb-btn').forEach(b => b.classList.remove('active'));
+  el.classList.add('active');
+  renderReviewTable(f);
+}
+
+function renderReviewTable(filter) {
+  const list = filter === 'all'   ? S.LIs
+    : filter === 'up'    ? S.LIs.filter(l => l.action === 'up')
+    : filter === 'down'  ? S.LIs.filter(l => l.action === 'down')
+    : filter === 'eol'   ? S.LIs.filter(l => l.action === 'eol')
+    : filter === 'error' ? S.LIs.filter(l => l.action === 'error')
+    : S.LIs.filter(l => l.action === 'hold');
+
+  document.getElementById('review-tbody').innerHTML = list.map(li => {
+    const canAct   = li.action === 'up' || li.action === 'down';
+    const checked  = S.accepted[li.liId] ? 'checked' : '';
+    const disabled = canAct ? '' : 'disabled';
+
+    const perfTag = li.performance === 'High Performer'
+      ? '<span class="tag t-hp">High</span>'
+      : li.performance === 'Low Performer'
+      ? '<span class="tag t-lp">Low</span>'
+      : '<span class="tag t-neu">—</span>';
+
+    const actionTag = li.action === 'up'    ? '<span class="tag t-up">↑ Bid Up</span>'
+      : li.action === 'down'  ? '<span class="tag t-dn">↓ Bid Down</span>'
+      : li.action === 'eol'   ? '<span class="tag t-eol">⏱ EOL</span>'
+      : li.action === 'error' ? '<span class="tag t-er">✗ Error</span>'
+      : '<span class="tag t-hold">— Hold</span>';
+
+    // Delivery bar
+    const dr = li.deliveryRatio;
+    const delivPct = dr !== null ? (dr * 100).toFixed(1) + '%' : '—';
+    const barW     = dr !== null ? Math.min(100, Math.round(dr * 100)) : 0;
+    const barColor = dr === null        ? 'var(--border2)'
+      : dr < UNDER_THRESHOLD            ? 'var(--amber)'
+      : dr > OVER_THRESHOLD             ? 'var(--emerald)'
+      : 'var(--sky)';
+
+    const liveBid = li.liveBidMicros !== null ? fmtBid(li.liveBidMicros) : '—';
+    const bqCpm   = li.cpm7d !== null ? '$' + li.cpm7d.toFixed(2) : '—';
+    const budget  = li.dailyBudget !== null ? fmtN(li.dailyBudget) : '—';
+
+    const newBidHtml = li.action === 'up'
+      ? '<span class="cpm-old">' + liveBid + '</span>&nbsp;→&nbsp;<span class="cpm-new-up">' + fmtBid(li.newBidMicros) + '</span>'
+      : li.action === 'down'
+      ? '<span class="cpm-old">' + liveBid + '</span>&nbsp;→&nbsp;<span class="cpm-new-dn">' + fmtBid(li.newBidMicros) + '</span>'
+      : '<span class="cpm-new-hold">' + liveBid + '</span>';
+
+    const bidTypeLabel = li.bidType === 'fixed' ? 'Fixed' : li.bidType === 'maxSpend' ? 'Max Spend' : (li.bidType || '—');
+    const daysColor = li.daysRemaining <= EOL_DAYS ? 'var(--coral)' : li.daysRemaining <= 7 ? 'var(--amber)' : 'var(--ink2)';
+
+    return '<tr>' +
+      '<td><input type="checkbox" ' + checked + ' ' + disabled + ' onchange="toggleLI(\'' + li.liId + '\',this.checked)"></td>' +
+      '<td><span class="li-name" title="' + esc(li.liName) + '">' + esc(li.liName) + '</span>' +
+           '<span class="li-sub">' + li.liId + ' · ' + li.ioId + '</span></td>' +
+      '<td style="white-space:nowrap;color:var(--ink2);">' + esc(li.advertiser) + '</td>' +
+      '<td class="mono" style="color:' + daysColor + ';font-weight:600;">' + li.daysRemaining + '</td>' +
+      '<td>' + perfTag + '</td>' +
+      '<td class="mono">' + fmtPct(li.cvr) + '</td>' +
+      '<td class="mono">' + fmtPct(li.ioCvrGoal) + '</td>' +
+      '<td class="mono" style="color:var(--ink3);">' + fmtN(li.impsYesterday) + '</td>' +
+      '<td class="mono" style="color:var(--ink3);">' + budget + '</td>' +
+      '<td>' +
+        '<div class="del-bar-wrap">' +
+          '<div class="del-bar-track"><div class="del-bar-fill" style="width:' + barW + '%;background:' + barColor + ';"></div></div>' +
+          '<span class="mono" style="font-size:10px;">' + delivPct + '</span>' +
+        '</div>' +
+      '</td>' +
+      '<td class="mono" style="color:var(--ink3);">' + bqCpm + '</td>' +
+      '<td class="mono">' + liveBid + '</td>' +
+      '<td class="mono" style="white-space:nowrap;">' + newBidHtml + '</td>' +
+      '<td>' + actionTag + '</td>' +
+      '<td><span class="tag t-neu">' + bidTypeLabel + '</span></td>' +
+    '</tr>';
+  }).join('');
+}
+
+function toggleLI(liId, val) { S.accepted[liId] = val; updateSelCount(); }
+function toggleAll(val) {
+  S.LIs.forEach(li => { if (li.action === 'up' || li.action === 'down') S.accepted[li.liId] = val; });
+  renderReviewTable(S.currentFilter);
+  updateSelCount();
+}
+function updateSelCount() {
+  const n = S.LIs.filter(l => S.accepted[l.liId]).length;
+  document.getElementById('sel-count').textContent = n + ' line item' + (n !== 1 ? 's' : '') + ' selected';
+}
+
+// ── PUSH ──────────────────────────────────────────────────────────────────────
+function goToPush() {
+  const n = S.LIs.filter(l => S.accepted[l.liId]).length;
+  if (!n) { alert('No line items selected.'); return; }
+  goTo(5);
+  document.getElementById('push-receipt').style.display = 'none';
+  document.getElementById('push-log').innerHTML = '';
+  document.getElementById('push-pb').style.width = '0%';
+  document.getElementById('push-pb-done').textContent = '0 pushed';
+  document.getElementById('push-pb-total').textContent = '';
+}
+
+async function executePush() {
+  const selected = S.LIs.filter(l => S.accepted[l.liId]);
+  if (!selected.length) { alert('No line items selected.'); return; }
+  const btn      = document.getElementById('btn-start-push');
+  btn.disabled   = true;
+  const logEl    = document.getElementById('push-log');
+  const pbFill   = document.getElementById('push-pb');
+  const pbDone   = document.getElementById('push-pb-done');
+  const total    = selected.length;
+  const pushTime = new Date();
+  const receipt  = [];
+  let done = 0;
+  document.getElementById('push-pb-total').textContent = total + ' total';
+
+  for (const li of selected) {
+    logEl.innerHTML += '> ' + li.liId + ' — ' + esc(li.advertiser) + '<br>';
+    const sentMicros = li.newBidMicros;
+
+    if (S.tok === 'DEMO') {
+      await new Promise(r => setTimeout(r, 50));
+      logEl.innerHTML += '&nbsp;&nbsp;→ ' + fmtBid(sentMicros) + ' <span class="log-ok">✓ demo</span><br>';
+      receipt.push(mkReceipt(li, sentMicros, sentMicros, 'OK', ''));
+    } else {
+      try {
+        const body = buildPatchBody(li, sentMicros);
+        const mask = li.bidType === 'maxSpend'
+          ? 'bidStrategy.maximizeSpendAutoBid.maxAverageCpmBidAmountMicros'
+          : 'bidStrategy.fixedBid.bidAmountMicros';
+        const url = 'https://displayvideo.googleapis.com/v4/advertisers/' + li.advId +
+                    '/lineItems/' + li.liId + '?updateMask=' + mask;
+        const res = await fetch(url, {
+          method: 'PATCH',
+          headers: { Authorization: 'Bearer ' + S.tok, 'Content-Type': 'application/json' },
+          body: JSON.stringify(body)
+        });
+        const data = await res.json();
+        if (res.ok) {
+          const confirmed = extractConfirmedMicros(data, li.bidType);
+          const status = confirmed === sentMicros ? 'OK' : 'MISMATCH';
+          logEl.innerHTML += '&nbsp;&nbsp;→ ' + fmtBid(sentMicros) + ' <span class="log-ok">✓</span><br>';
+          receipt.push(mkReceipt(li, sentMicros, confirmed, status, ''));
+        } else {
+          const msg = data.error?.message || (res.status + ' ' + res.statusText);
+          logEl.innerHTML += '&nbsp;&nbsp;<span class="log-err">✗ ' + msg + '</span><br>';
+          receipt.push(mkReceipt(li, sentMicros, null, 'ERROR', msg));
+        }
+      } catch(err) {
+        logEl.innerHTML += '&nbsp;&nbsp;<span class="log-err">✗ ' + err.message + '</span><br>';
+        receipt.push(mkReceipt(li, sentMicros, null, 'ERROR', err.message));
+      }
+    }
+
+    done++;
+    pbFill.style.width = (done/total*100) + '%';
+    pbDone.textContent = done + ' pushed';
+    logEl.scrollTop = logEl.scrollHeight;
+  }
+
+  logEl.innerHTML += '<br><strong>Push complete.</strong>';
+  S.pushReceipt = { rows: receipt, time: pushTime };
+  renderPushReceipt(receipt, pushTime);
+  btn.disabled = false;
+}
+
+function mkReceipt(li, sentMicros, confirmedMicros, status, error) {
+  return { liId: li.liId, ioId: li.ioId, liName: li.liName, advertiser: li.advertiser,
+           action: li.action, bidType: li.bidType, sentMicros, confirmedMicros, status, error };
+}
+
+function buildPatchBody(li, micros) {
+  const s = String(micros);
+  if (li.bidType === 'maxSpend')
+    return { bidStrategy: { maximizeSpendAutoBid: { maxAverageCpmBidAmountMicros: s } } };
+  return { bidStrategy: { fixedBid: { bidAmountMicros: s } } };
+}
+
+function extractConfirmedMicros(data, bidType) {
+  const bs = data.bidStrategy || {};
+  if (bidType === 'maxSpend') return parseInt(bs.maximizeSpendAutoBid?.maxAverageCpmBidAmountMicros || '0');
+  return parseInt(bs.fixedBid?.bidAmountMicros || '0');
+}
+
+function renderPushReceipt(rows, time) {
+  document.getElementById('push-receipt').style.display = 'block';
+  document.getElementById('receipt-timestamp').textContent =
+    time.toLocaleDateString() + ' ' + time.toLocaleTimeString();
+
+  const ok       = rows.filter(r => r.status === 'OK').length;
+  const mismatch = rows.filter(r => r.status === 'MISMATCH').length;
+  const errors   = rows.filter(r => r.status === 'ERROR').length;
+
+  document.getElementById('receipt-summary').innerHTML =
+    '<div class="sav-met" style="flex:1;"><div class="sm-label">Confirmed</div>' +
+      '<div class="sm-val" style="color:var(--emerald);font-size:24px;">' + ok + '</div>' +
+      '<div class="sm-sub">line items updated</div></div>' +
+    '<div class="sav-met" style="flex:1;"><div class="sm-label">Mismatches</div>' +
+      '<div class="sm-val" style="color:' + (mismatch?'var(--amber)':'var(--ink3)') + ';font-size:24px;">' + mismatch + '</div>' +
+      '<div class="sm-sub">sent ≠ confirmed</div></div>' +
+    '<div class="sav-met" style="flex:1;"><div class="sm-label">Errors</div>' +
+      '<div class="sm-val" style="color:' + (errors?'var(--coral)':'var(--ink3)') + ';font-size:24px;">' + errors + '</div>' +
+      '<div class="sm-sub">failed to update</div></div>';
+
+  document.getElementById('receipt-tbody').innerHTML = rows.map(r => {
+    const st = r.status === 'OK'
+      ? '<span class="tag t-ok">✓ Confirmed</span>'
+      : r.status === 'MISMATCH'
+      ? '<span class="tag t-warn">⚠ Mismatch</span>'
+      : '<span class="tag t-er">✗ Error</span>';
+    const at = r.action === 'up'
+      ? '<span class="tag t-up">↑ Bid Up</span>'
+      : '<span class="tag t-dn">↓ Bid Down</span>';
+    const conf = r.confirmedMicros !== null
+      ? '<span style="color:' + (r.confirmedMicros===r.sentMicros?'var(--emerald)':'var(--amber)') + '">' + fmtBid(r.confirmedMicros) + '</span>'
+      : '<span style="color:var(--coral)">—</span>';
+    return '<tr>' +
+      '<td><div style="font-weight:600;color:var(--ink);">' + esc(r.liName) + '</div>' +
+           '<div style="font-size:9px;color:var(--ink3);font-family:var(--mono);">' + r.liId + ' · ' + r.ioId + '</div></td>' +
+      '<td>' + esc(r.advertiser) + '</td>' +
+      '<td>' + at + '</td>' +
+      '<td><span class="tag t-neu">' + (r.bidType === 'fixed' ? 'Fixed' : r.bidType === 'maxSpend' ? 'Max Spend' : r.bidType||'—') + '</span></td>' +
+      '<td style="font-family:var(--mono);">' + fmtBid(r.sentMicros) + '</td>' +
+      '<td style="font-family:var(--mono);">' + conf + '</td>' +
+      '<td>' + st + '</td>' +
+      '<td style="font-family:var(--mono);font-size:10px;color:var(--coral);">' + esc(r.error||'') + '</td>' +
+    '</tr>';
+  }).join('');
+}
+
+// ── CSV EXPORTS ───────────────────────────────────────────────────────────────
+function exportAuditCSV() {
+  const h = 'LI_ID,IO_ID,Advertiser_ID,Advertiser,LI_Name,Days_Remaining,Performance,CVR_7d,IO_CVR_Goal,' +
+            'Imps_Yesterday,Daily_Budget_API,Delivery_Pct,BQ_CPM,Live_Bid,New_Bid,Bid_Delta,Action,Bid_Type\n';
+  const csv = S.LIs.map(li => {
+    const dr    = li.deliveryRatio !== null ? (li.deliveryRatio*100).toFixed(1)+'%' : '';
+    const live  = li.liveBidMicros !== null ? (li.liveBidMicros/MICROS).toFixed(4) : '';
+    const nxt   = li.newBidMicros  !== null ? (li.newBidMicros/MICROS).toFixed(4)  : '';
+    const delta = (li.liveBidMicros !== null && li.newBidMicros !== null)
+      ? ((li.newBidMicros - li.liveBidMicros)/MICROS).toFixed(4) : '';
+    return '"' + li.liId + '","' + li.ioId + '","' + li.advId + '","' +
+      li.advertiser.replace(/"/g,"'") + '","' + li.liName.replace(/"/g,"'") + '",' +
+      li.daysRemaining + ',"' + (li.performance||'') + '",' +
+      (li.cvr*100).toFixed(4)+'%,' + (li.ioCvrGoal*100).toFixed(4)+'%,' +
+      li.impsYesterday + ',' + (li.dailyBudget||'') + ',"' + dr + '",' +
+      (li.cpm7d !== null ? li.cpm7d.toFixed(4) : '') + ',' +
+      live + ',' + nxt + ',' + delta + ',' + li.action + ',' + (li.bidType||'');
+  }).join('\n');
+  downloadCSV('dv360_bid_audit_' + new Date().toISOString().split('T')[0] + '.csv', h + csv);
+}
+
+function downloadPushReceipt() {
+  if (!S.pushReceipt) return;
+  const { rows, time } = S.pushReceipt;
+  const ts = time.toISOString().replace(/[:.]/g,'-').slice(0,19);
+  const h = 'Push_Timestamp,LI_ID,IO_ID,Advertiser,LI_Name,Action,Bid_Type,Sent_Bid,Confirmed_Bid,Status,Error\n';
+  const csv = rows.map(r =>
+    '"' + time.toISOString() + '","' + r.liId + '","' + r.ioId + '","' +
+    r.advertiser.replace(/"/g,"'") + '","' + r.liName.replace(/"/g,"'") + '",' +
+    r.action + ',' + (r.bidType||'') + ',' +
+    (r.sentMicros/MICROS).toFixed(4) + ',' +
+    (r.confirmedMicros!==null?(r.confirmedMicros/MICROS).toFixed(4):'') + ',' +
+    r.status + ',"' + (r.error||'').replace(/"/g,"'") + '"'
+  ).join('\n');
+  downloadCSV('dv360_bid_receipt_' + ts + '.csv', h + csv);
+}
+
+function downloadCSV(filename, content) {
+  const a = document.createElement('a');
+  a.href = 'data:text/csv;charset=utf-8,' + encodeURIComponent(content);
+  a.download = filename;
+  a.click();
+}
+
+// ── INIT ──────────────────────────────────────────────────────────────────────
+checkOAuthCallback();
+</script>
+</body>
+</html>
