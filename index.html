@@ -637,83 +637,142 @@ async function runFetch() {
 
   S.LIs = S.rows.map(r => ({
     ...r,
-    liveBidMicros:  null,
-    bidType:        null,
-    dailyBudget:    null,   // budget.maxAmount (daily impression cap from API)
-    deliveryRatio:  null,
-    fetchError:     null,
-    action:         'hold',
-    newBidMicros:   null
+    liveBidMicros: null,
+    bidType:       null,
+    dailyBudget:   null,
+    deliveryRatio: null,
+    fetchError:    null,
+    action:        'hold',
+    newBidMicros:  null
   }));
+
+  // Build a lookup map for fast hydration after API responses come back
+  const liMap = {};
+  S.LIs.forEach(li => { liMap[li.liId] = li; });
 
   const total = S.LIs.length;
   pbTotal.textContent = total + ' line items';
-  let done = 0, idx = 0;
-  const CONCURRENCY = 10;
+  let done = 0;
 
-  async function worker() {
-    while (idx < S.LIs.length) {
-      const li = S.LIs[idx++];
-
-      if (S.tok === 'DEMO') {
-        await new Promise(r => setTimeout(r, 15 + Math.random()*50));
-        // Live bid: simulate as a clean round number near cpm_7d
-        const demoBid = li.cpm7d !== null
-          ? toMicros(Math.round(li.cpm7d * (0.85 + Math.random() * 0.3) * 4) / 4)
-          : toMicros(Math.round((1 + Math.random() * 6) * 4) / 4);
-        li.liveBidMicros = clamp(Math.round(demoBid), FLOOR_MICROS, CEILING_MICROS);
-        li.bidType = Math.random() > 0.4 ? 'fixed' : 'maxSpend';
-        // Daily budget: back-calculate from yesterday imps at a random delivery ratio
-        // Ensures delivery ratio is always computable in demo
-        const demoDr = 0.3 + Math.random() * 0.8;
-        li.dailyBudget = li.impsYesterday > 0
-          ? Math.max(100, Math.round(li.impsYesterday / demoDr))
-          : Math.round(500 + Math.random() * 4500);
-        logEl.innerHTML += li.liId + ' → bid <span class="log-ok">' + fmtBid(li.liveBidMicros) +
-          '</span> · budget <span class="log-ok">' + fmtN(li.dailyBudget) + ' imps ✓ demo</span><br>';
-      } else {
-        try {
-          const url = 'https://displayvideo.googleapis.com/v4/advertisers/' + li.advId +
-                      '/lineItems/' + li.liId +
-                      '?fields=bidStrategy,budget.maxAmount,budget.budgetAllocationType';
-          const res = await fetch(url, { headers: { Authorization: 'Bearer ' + S.tok } });
-          const data = await res.json();
-          if (!res.ok) throw new Error(data.error?.message || res.status);
-
-          // Extract bid
-          const { micros, type } = extractBid(data);
-          if (micros === null) throw new Error('No adjustable CPM bid found');
-          li.liveBidMicros = micros;
-          li.bidType = type;
-
-          // Extract daily impression budget — budget.maxAmount is the LI-level fixed daily imp cap
-          // This is the same field the LP Optimizer writes to via budget.budgetAllocationType = FIXED
-          const budgetMax = data.budget?.maxAmount;
-          li.dailyBudget = budgetMax ? parseInt(budgetMax) : null;
-
-          logEl.innerHTML += li.liId + ' → bid <span class="log-ok">' + fmtBid(micros) +
-            '</span> · budget <span class="log-ok">' +
-            (li.dailyBudget !== null ? fmtN(li.dailyBudget) + ' imps' : 'no budget cap') +
-            ' ✓</span><br>';
-        } catch(err) {
-          li.fetchError = err.message;
-          logEl.innerHTML += li.liId + ' <span class="log-err">✗ ' + err.message + '</span><br>';
-        }
-      }
-
-      // Compute delivery ratio immediately after fetch
-      if (li.dailyBudget && li.dailyBudget > 0) {
-        li.deliveryRatio = li.impsYesterday / li.dailyBudget;
-      }
-
+  // ── DEMO MODE: simulate in batches ──────────────────────────────────────────
+  if (S.tok === 'DEMO') {
+    for (const li of S.LIs) {
+      const demoBid = li.cpm7d !== null
+        ? toMicros(Math.round(li.cpm7d * (0.85 + Math.random() * 0.3) * 4) / 4)
+        : toMicros(Math.round((1 + Math.random() * 6) * 4) / 4);
+      li.liveBidMicros = clamp(Math.round(demoBid), FLOOR_MICROS, CEILING_MICROS);
+      li.bidType = Math.random() > 0.4 ? 'fixed' : 'maxSpend';
+      const demoDr = 0.3 + Math.random() * 0.8;
+      li.dailyBudget = li.impsYesterday > 0
+        ? Math.max(100, Math.round(li.impsYesterday / demoDr))
+        : Math.round(500 + Math.random() * 4500);
+      if (li.dailyBudget > 0) li.deliveryRatio = li.impsYesterday / li.dailyBudget;
       done++;
       pbFill.style.width = (done/total*100) + '%';
       pbDone.textContent = done + ' fetched';
-      logEl.scrollTop = logEl.scrollHeight;
+    }
+    logEl.innerHTML = '<span class="log-ok">Demo: ' + total + ' line items simulated.</span>';
+    computeRecommendations();
+    document.getElementById('btn-go-review').style.display = 'inline-flex';
+    return;
+  }
+
+  // ── LIVE MODE: batch by advertiser, chunk at 100 IDs per request ─────────────
+  // Group LIs by advertiser_id
+  const byAdv = {};
+  S.LIs.forEach(li => {
+    if (!byAdv[li.advId]) byAdv[li.advId] = [];
+    byAdv[li.advId].push(li);
+  });
+
+  // Build list of [advId, chunk[]] pairs, chunked at 100 LIs per API call
+  const CHUNK_SIZE = 100;
+  const batches = []; // { advId, chunk }
+  for (const [advId, lis] of Object.entries(byAdv)) {
+    for (let i = 0; i < lis.length; i += CHUNK_SIZE) {
+      batches.push({ advId, chunk: lis.slice(i, i + CHUNK_SIZE) });
     }
   }
 
-  await Promise.all(Array.from({ length: Math.min(CONCURRENCY, total) }, () => worker()));
+  pbTotal.textContent = total + ' line items · ' + batches.length + ' batch' + (batches.length !== 1 ? 'es' : '');
+  logEl.innerHTML = 'Fetching ' + total + ' line items across ' + batches.length +
+    ' batches (' + Object.keys(byAdv).length + ' advertisers)…<br><br>';
+
+  // Run batches with up to 5 concurrent advertiser requests
+  const BATCH_CONCURRENCY = 5;
+  let batchIdx = 0;
+
+  async function batchWorker() {
+    while (batchIdx < batches.length) {
+      const { advId, chunk } = batches[batchIdx++];
+
+      // Build filter: lineItemId="id1" OR lineItemId="id2" ...
+      const filter = chunk.map(li => 'lineItemId="' + li.liId + '"').join(' OR ');
+      const fields = 'lineItems(lineItemId,bidStrategy,pacing)';
+      const url = 'https://displayvideo.googleapis.com/v4/advertisers/' + advId +
+                  '/lineItems?filter=' + encodeURIComponent(filter) +
+                  '&fields=' + encodeURIComponent(fields) +
+                  '&pageSize=200';
+      try {
+        // Handle pagination — unlikely needed at 100-chunk but correct to handle
+        let pageToken = null;
+        do {
+          const pagedUrl = pageToken ? url + '&pageToken=' + pageToken : url;
+          const res = await fetch(pagedUrl, { headers: { Authorization: 'Bearer ' + S.tok } });
+          const data = await res.json();
+          if (!res.ok) throw new Error(data.error?.message || res.status);
+
+          const items = data.lineItems || [];
+          for (const item of items) {
+            const li = liMap[item.lineItemId];
+            if (!li) continue;
+
+            const { micros, type } = extractBid(item);
+            li.liveBidMicros = micros;
+            li.bidType = type;
+            if (micros === null) li.fetchError = 'No adjustable CPM bid found';
+
+            const dailyMax = item.pacing?.dailyMaxImpressions;
+            li.dailyBudget = dailyMax ? parseInt(dailyMax) : null;
+            if (li.dailyBudget > 0) li.deliveryRatio = li.impsYesterday / li.dailyBudget;
+          }
+
+          // Mark any LIs in this chunk not returned by the API as errors
+          items.length > 0 && chunk.forEach(li => {
+            if (li.liveBidMicros === null && !li.fetchError) {
+              li.fetchError = 'Not returned by API';
+            }
+          });
+
+          pageToken = data.nextPageToken || null;
+        } while (pageToken);
+
+        const chunkDone = chunk.length;
+        done += chunkDone;
+        pbFill.style.width = (done/total*100) + '%';
+        pbDone.textContent = done + ' fetched';
+
+        const sampleBid = chunk.find(l => l.liveBidMicros !== null);
+        const errCount  = chunk.filter(l => l.fetchError).length;
+        logEl.innerHTML += 'Advertiser ' + advId + ' · ' + chunkDone + ' LIs' +
+          (sampleBid ? ' · e.g. ' + fmtBid(sampleBid.liveBidMicros) : '') +
+          (errCount  ? ' · <span class="log-warn">' + errCount + ' errors</span>' : '') +
+          ' <span class="log-ok">✓</span><br>';
+        logEl.scrollTop = logEl.scrollHeight;
+
+      } catch(err) {
+        // Whole batch failed — mark all LIs in chunk as errors
+        chunk.forEach(li => { li.fetchError = err.message; });
+        done += chunk.length;
+        pbFill.style.width = (done/total*100) + '%';
+        pbDone.textContent = done + ' fetched';
+        logEl.innerHTML += 'Advertiser ' + advId + ' <span class="log-err">✗ ' + err.message + '</span><br>';
+        logEl.scrollTop = logEl.scrollHeight;
+      }
+    }
+  }
+
+  await Promise.all(Array.from({ length: Math.min(BATCH_CONCURRENCY, batches.length) }, () => batchWorker()));
   computeRecommendations();
   document.getElementById('btn-go-review').style.display = 'inline-flex';
 }
