@@ -131,8 +131,8 @@ input[type=range]{width:100%;accent-color:var(--coral);cursor:pointer;}
 .rule-table tr.rule-dn td{background:rgba(184,98,10,0.03);}
 .rule-table tr.rule-hold td{background:transparent;}
 
-.filter-bar{display:flex;gap:8px;margin-bottom:20px;flex-wrap:wrap;}
-.fb-btn{font-family:var(--mono);font-size:10px;padding:6px 14px;border-radius:20px;border:1.5px solid var(--border2);background:var(--white);color:var(--ink3);cursor:pointer;transition:var(--transition);letter-spacing:.04em;}
+.filter-bar{display:flex;gap:8px;margin-bottom:20px;flex-wrap:wrap;position:relative;z-index:2;}
+.fb-btn{font-family:var(--mono);font-size:10px;padding:6px 14px;border-radius:20px;border:1.5px solid var(--border2);background:var(--white);color:var(--ink3);cursor:pointer;transition:var(--transition);letter-spacing:.04em;position:relative;z-index:2;}
 .fb-btn.active{border-color:var(--coral);background:var(--coral-light);color:var(--coral);}
 .fb-btn:hover{border-color:var(--coral);color:var(--coral);}
 
@@ -338,7 +338,6 @@ input[type=range]{width:100%;accent-color:var(--coral);cursor:pointer;}
   <p class="ps">Inspect every recommendation before pushing. Toggle individual line items. Only checked items will be patched.</p>
 
   <div class="sav-hero">
-    <div class="sav-icon">🎯</div>
     <div class="sav-content">
       <div class="sav-title">Ready to <strong>optimize</strong></div>
       <div class="sav-sub">Review the recommendations below and push when ready</div>
@@ -658,24 +657,25 @@ async function runFetch() {
 
       if (S.tok === 'DEMO') {
         await new Promise(r => setTimeout(r, 15 + Math.random()*50));
-        // Simulate live bid ~= cpm_7d × some factor
+        // Live bid: simulate as a clean round number near cpm_7d
         const demoBid = li.cpm7d !== null
-          ? toMicros(li.cpm7d * (0.8 + Math.random() * 0.4))
-          : toMicros(1 + Math.random() * 6);
+          ? toMicros(Math.round(li.cpm7d * (0.85 + Math.random() * 0.3) * 4) / 4)
+          : toMicros(Math.round((1 + Math.random() * 6) * 4) / 4);
         li.liveBidMicros = clamp(Math.round(demoBid), FLOOR_MICROS, CEILING_MICROS);
         li.bidType = Math.random() > 0.4 ? 'fixed' : 'maxSpend';
-        // Simulate daily budget: impsYesterday / random delivery ratio
-        const demoDr = 0.4 + Math.random() * 0.7;
+        // Daily budget: back-calculate from yesterday imps at a random delivery ratio
+        // Ensures delivery ratio is always computable in demo
+        const demoDr = 0.3 + Math.random() * 0.8;
         li.dailyBudget = li.impsYesterday > 0
-          ? Math.round(li.impsYesterday / demoDr)
-          : Math.round(1000 + Math.random() * 9000);
+          ? Math.max(100, Math.round(li.impsYesterday / demoDr))
+          : Math.round(500 + Math.random() * 4500);
         logEl.innerHTML += li.liId + ' → bid <span class="log-ok">' + fmtBid(li.liveBidMicros) +
           '</span> · budget <span class="log-ok">' + fmtN(li.dailyBudget) + ' imps ✓ demo</span><br>';
       } else {
         try {
           const url = 'https://displayvideo.googleapis.com/v4/advertisers/' + li.advId +
                       '/lineItems/' + li.liId +
-                      '?fields=bidStrategy,budget';
+                      '?fields=bidStrategy,budget.maxAmount,budget.budgetAllocationType';
           const res = await fetch(url, { headers: { Authorization: 'Bearer ' + S.tok } });
           const data = await res.json();
           if (!res.ok) throw new Error(data.error?.message || res.status);
@@ -686,8 +686,8 @@ async function runFetch() {
           li.liveBidMicros = micros;
           li.bidType = type;
 
-          // Extract daily impression budget
-          // budget.maxAmount is the fixed daily impression cap (integer string)
+          // Extract daily impression budget — budget.maxAmount is the LI-level fixed daily imp cap
+          // This is the same field the LP Optimizer writes to via budget.budgetAllocationType = FIXED
           const budgetMax = data.budget?.maxAmount;
           li.dailyBudget = budgetMax ? parseInt(budgetMax) : null;
 
@@ -797,8 +797,11 @@ function renderReview() {
     metHtml('End of Flight',  eols,  'var(--ink4)')    +
     (errs ? metHtml('Errors', errs,  'var(--coral)') : '');
 
+  // Auto-select all actionable LIs on load
+  S.LIs.forEach(li => { if (li.action === 'up' || li.action === 'down') S.accepted[li.liId] = true; });
   renderReviewTable(S.currentFilter);
   updateSelCount();
+  document.getElementById('chk-all').checked = true;
 }
 
 function metHtml(label, val, color) {
@@ -886,16 +889,24 @@ function renderReviewTable(filter) {
   }).join('');
 }
 
-function toggleLI(liId, val) { S.accepted[liId] = val; updateSelCount(); }
+function toggleLI(liId, val) {
+  S.accepted[liId] = val;
+  updateSelCount();
+}
 function toggleAll(val) {
   S.LIs.forEach(li => { if (li.action === 'up' || li.action === 'down') S.accepted[li.liId] = val; });
   renderReviewTable(S.currentFilter);
   updateSelCount();
 }
 function updateSelCount() {
-  const n = S.LIs.filter(l => S.accepted[l.liId]).length;
-  document.getElementById('sel-count').textContent = n + ' line item' + (n !== 1 ? 's' : '') + ' selected';
+  const actionable = S.LIs.filter(l => l.action === 'up' || l.action === 'down');
+  const selected   = actionable.filter(l => S.accepted[l.liId]);
+  const n = selected.length;
+  document.getElementById('sel-count').textContent = n + ' of ' + actionable.length + ' line item' + (actionable.length !== 1 ? 's' : '') + ' selected';
+  const chkAll = document.getElementById('chk-all');
+  if (chkAll) chkAll.checked = actionable.length > 0 && selected.length === actionable.length;
 }
+
 
 // ── PUSH ──────────────────────────────────────────────────────────────────────
 function goToPush() {
