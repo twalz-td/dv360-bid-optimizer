@@ -4,7 +4,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>TravelDesk — DV360 Line Item Bid Management</title>
+<title>TravelDesk — DV360 Line Item Bid Optimizer</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <style>
@@ -95,7 +95,10 @@ input[type=range]{width:100%;accent-color:var(--coral);cursor:pointer;}
 .fetch-log .log-warn{color:var(--amber);font-weight:500;}
 .fetch-log .log-err{color:var(--coral);font-weight:500;}
 
-.tag{font-family:var(--mono);font-size:9px;padding:4px 10px;border-radius:20px;letter-spacing:.06em;text-transform:uppercase;font-weight:600;}
+
+
+
+.tag{font-family:var(--mono);font-size:9px;padding:4px 10px;border-radius:20px;letter-spacing:.06em;text-transform:uppercase;font-weight:600;white-space:nowrap;display:inline-block;}
 .t-ok{background:var(--emerald-light);color:var(--emerald);border:1px solid var(--emerald-mid);}
 .t-warn{background:var(--amber-light);color:var(--amber);border:1px solid var(--amber-mid);}
 .t-er{background:var(--coral-light);color:var(--coral);border:1px solid var(--coral-mid);}
@@ -171,7 +174,7 @@ input[type=range]{width:100%;accent-color:var(--coral);cursor:pointer;}
   <div class="la">
     <span class="la-fallback">TravelDesk</span>
     <div class="ld"></div>
-    <span class="lapp">DV360 Line Item Bid Management</span>
+    <span class="lapp">DV360 Line Item Bid Optimizer</span>
   </div>
   <nav class="snav">
     <div class="si active" id="sn-1"><span class="snum">1</span>Setup</div>
@@ -373,8 +376,7 @@ input[type=range]{width:100%;accent-color:var(--coral);cursor:pointer;}
             <th>BQ CPM</th>
             <th>Live Bid</th>
             <th>New Bid</th>
-            <th>Action</th>
-            <th>Type</th>
+
           </tr>
         </thead>
         <tbody id="review-tbody"></tbody>
@@ -685,8 +687,12 @@ async function runFetch() {
     byAdv[li.advId].push(li);
   });
 
-  // Build list of [advId, chunk[]] pairs, chunked at 100 LIs per API call
-  const CHUNK_SIZE = 100;
+  // DV360 filter string limit is 500 chars. Each ID entry is ~20 chars ("lineItemId="123456789012" OR ")
+  // so 15 IDs per chunk stays safely under the limit (~300 chars).
+  const CHUNK_SIZE = 15;
+  // With smaller chunks we get more batches (~72 for 1079 LIs), so run more concurrently
+  const BATCH_CONCURRENCY = 10;
+
   const batches = []; // { advId, chunk }
   for (const [advId, lis] of Object.entries(byAdv)) {
     for (let i = 0; i < lis.length; i += CHUNK_SIZE) {
@@ -694,13 +700,10 @@ async function runFetch() {
     }
   }
 
+  let batchIdx = 0;
   pbTotal.textContent = total + ' line items · ' + batches.length + ' batch' + (batches.length !== 1 ? 'es' : '');
   logEl.innerHTML = 'Fetching ' + total + ' line items across ' + batches.length +
     ' batches (' + Object.keys(byAdv).length + ' advertisers)…<br><br>';
-
-  // Run batches with up to 5 concurrent advertiser requests
-  const BATCH_CONCURRENCY = 5;
-  let batchIdx = 0;
 
   async function batchWorker() {
     while (batchIdx < batches.length) {
@@ -919,7 +922,6 @@ function renderReviewTable(filter) {
       ? '<span class="cpm-old">' + liveBid + '</span>&nbsp;→&nbsp;<span class="cpm-new-dn">' + fmtBid(li.newBidMicros) + '</span>'
       : '<span class="cpm-new-hold">' + liveBid + '</span>';
 
-    const bidTypeLabel = li.bidType === 'fixed' ? 'Fixed' : li.bidType === 'maxSpend' ? 'Max Spend' : (li.bidType || '—');
     const daysColor = li.daysRemaining <= EOL_DAYS ? 'var(--coral)' : li.daysRemaining <= 7 ? 'var(--amber)' : 'var(--ink2)';
 
     return '<tr>' +
@@ -943,7 +945,7 @@ function renderReviewTable(filter) {
       '<td class="mono">' + liveBid + '</td>' +
       '<td class="mono" style="white-space:nowrap;">' + newBidHtml + '</td>' +
       '<td>' + actionTag + '</td>' +
-      '<td><span class="tag t-neu">' + bidTypeLabel + '</span></td>' +
+      '<td><span class="tag t-neu">' + (li.bidType === 'fixed' ? 'Fixed' : li.bidType === 'maxSpend' ? 'Max Spend' : (li.bidType || '—')) + '</span></td>' +
     '</tr>';
   }).join('');
 }
