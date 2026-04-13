@@ -4,7 +4,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>TravelDesk — DV360 Line Itme Bid Optimizer</title>
+<title>TravelDesk — DV360 Bid Optimizer</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <style>
@@ -174,7 +174,7 @@ input[type=range]{width:100%;accent-color:var(--coral);cursor:pointer;}
   <div class="la">
     <span class="la-fallback">TravelDesk</span>
     <div class="ld"></div>
-    <span class="lapp">DV360 Line Itme Bid Optimizer</span>
+    <span class="lapp">Bid Optimizer</span>
   </div>
   <nav class="snav">
     <div class="si active" id="sn-1"><span class="snum">1</span>Setup</div>
@@ -641,6 +641,7 @@ async function runFetch() {
     ...r,
     liveBidMicros: null,
     bidType:       null,
+    perfGoalType:  null,
     dailyBudget:   null,
     deliveryRatio: null,
     fetchError:    null,
@@ -730,9 +731,10 @@ async function runFetch() {
             const li = liMap[item.lineItemId];
             if (!li) continue;
 
-            const { micros, type } = extractBid(item);
+            const { micros, type, perfGoalType } = extractBid(item);
             li.liveBidMicros = micros;
             li.bidType = type;
+            li.perfGoalType = perfGoalType;
             if (micros === null) li.fetchError = 'No adjustable CPM bid found';
 
             const dailyMax = item.pacing?.dailyMaxImpressions;
@@ -780,14 +782,7 @@ async function runFetch() {
   document.getElementById('btn-go-review').style.display = 'inline-flex';
 }
 
-function extractBid(data) {
-  const bs = data.bidStrategy || {};
-  if (bs.fixedBid?.bidAmountMicros)
-    return { micros: parseInt(bs.fixedBid.bidAmountMicros), type: 'fixed' };
-  if (bs.maximizeSpendAutoBid?.maxAverageCpmBidAmountMicros)
-    return { micros: parseInt(bs.maximizeSpendAutoBid.maxAverageCpmBidAmountMicros), type: 'maxSpend' };
-  return { micros: null, type: 'unknown' };
-}
+
 
 // ── COMPUTE RECOMMENDATIONS ───────────────────────────────────────────────────
 function computeRecommendations() {
@@ -1007,7 +1002,7 @@ async function executePush() {
       try {
         const body = buildPatchBody(li, sentMicros);
         const mask = li.bidType === 'maxSpend'
-          ? 'bidStrategy.maximizeSpendAutoBid.maxAverageCpmBidAmountMicros'
+          ? 'bidStrategy.maximizeSpendAutoBid.maxAverageCpmBidAmountMicros,bidStrategy.maximizeSpendAutoBid.performanceGoalType'
           : 'bidStrategy.fixedBid.bidAmountMicros';
         const url = 'https://displayvideo.googleapis.com/v4/advertisers/' + li.advId +
                     '/lineItems/' + li.liId + '?updateMask=' + mask;
@@ -1050,10 +1045,26 @@ function mkReceipt(li, sentMicros, confirmedMicros, status, error) {
            action: li.action, bidType: li.bidType, sentMicros, confirmedMicros, status, error };
 }
 
+function extractBid(data) {
+  const bs = data.bidStrategy || {};
+  if (bs.fixedBid?.bidAmountMicros)
+    return { micros: parseInt(bs.fixedBid.bidAmountMicros), type: 'fixed', perfGoalType: null };
+  if (bs.maximizeSpendAutoBid?.maxAverageCpmBidAmountMicros)
+    return {
+      micros: parseInt(bs.maximizeSpendAutoBid.maxAverageCpmBidAmountMicros),
+      type: 'maxSpend',
+      perfGoalType: bs.maximizeSpendAutoBid.performanceGoalType || null
+    };
+  return { micros: null, type: 'unknown', perfGoalType: null };
+}
+
 function buildPatchBody(li, micros) {
   const s = String(micros);
-  if (li.bidType === 'maxSpend')
-    return { bidStrategy: { maximizeSpendAutoBid: { maxAverageCpmBidAmountMicros: s } } };
+  if (li.bidType === 'maxSpend') {
+    const body = { bidStrategy: { maximizeSpendAutoBid: { maxAverageCpmBidAmountMicros: s } } };
+    if (li.perfGoalType) body.bidStrategy.maximizeSpendAutoBid.performanceGoalType = li.perfGoalType;
+    return body;
+  }
   return { bidStrategy: { fixedBid: { bidAmountMicros: s } } };
 }
 
