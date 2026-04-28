@@ -166,6 +166,31 @@ input[type=range]{width:100%;accent-color:var(--coral);cursor:pointer;}
 .flex-row{display:flex;align-items:center;gap:12px;flex-wrap:wrap;}
 .four-col{display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:16px;}
 .five-col{display:grid;grid-template-columns:1fr 1fr 1fr 1fr 1fr;gap:16px;}
+
+.adv-dropdown-wrap{position:relative;display:inline-block;margin-bottom:12px;}
+.adv-dropdown-trigger{display:flex;align-items:center;gap:10px;padding:8px 14px;border-radius:var(--r);border:1.5px solid var(--border2);background:var(--white);color:var(--ink2);font-family:var(--mono);font-size:11px;cursor:pointer;transition:var(--transition);min-width:220px;box-shadow:0 1px 2px rgba(26,20,16,0.06);}
+.adv-dropdown-trigger:hover{border-color:var(--coral);color:var(--coral);}
+.adv-dropdown-trigger.open{border-color:var(--coral);box-shadow:0 0 0 3px rgba(212,83,58,0.1);}
+.adv-dropdown-trigger .adt-label{flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.adv-dropdown-trigger .adt-badge{background:var(--coral);color:#fff;border-radius:10px;padding:1px 7px;font-size:9px;font-weight:600;flex-shrink:0;}
+.adv-dropdown-trigger .adt-arrow{color:var(--ink3);font-size:10px;flex-shrink:0;transition:var(--transition);}
+.adv-dropdown-trigger.open .adt-arrow{transform:rotate(180deg);}
+.adv-dropdown-menu{position:absolute;top:calc(100% + 6px);left:0;min-width:100%;max-width:420px;background:var(--white);border:1.5px solid var(--border2);border-radius:var(--rl);box-shadow:var(--shadow-lg);z-index:50;overflow:hidden;display:none;}
+.adv-dropdown-menu.open{display:block;}
+.adv-dd-header{display:flex;gap:8px;padding:10px 12px;border-bottom:1px solid var(--border);background:var(--paper2);}
+.adv-dd-header button{font-family:var(--mono);font-size:9px;padding:4px 10px;border-radius:20px;border:1.5px solid var(--border2);background:var(--white);color:var(--ink3);cursor:pointer;letter-spacing:.06em;transition:var(--transition);}
+.adv-dd-header button:hover{border-color:var(--coral);color:var(--coral);}
+.adv-dd-list{max-height:260px;overflow-y:auto;padding:6px 0;}
+.adv-dd-item{display:flex;align-items:center;gap:10px;padding:8px 14px;cursor:pointer;transition:var(--transition);font-family:var(--mono);font-size:11px;color:var(--ink2);}
+.adv-dd-item:hover{background:var(--paper2);}
+.adv-dd-item input[type=checkbox]{accent-color:var(--coral);width:14px;height:14px;flex-shrink:0;cursor:pointer;}
+.adv-dd-item.checked{background:var(--coral-light);}
+.adv-dd-item.checked .adv-dd-name{color:var(--coral);font-weight:600;}
+.table-toolbar{display:flex;align-items:center;gap:8px;margin-bottom:14px;flex-wrap:wrap;}
+.scroll-btn{font-family:var(--mono);font-size:10px;padding:5px 12px;border-radius:var(--r);border:1.5px solid var(--border2);background:var(--white);color:var(--ink3);cursor:pointer;transition:var(--transition);letter-spacing:.04em;}
+.scroll-btn:hover{border-color:var(--coral);color:var(--coral);background:var(--coral-light);}
+.tbl-wrap{max-height:640px;overflow-y:auto;overflow-x:auto;border:1px solid var(--border);border-radius:var(--r);}
+.tbl-wrap .rev-table th{position:sticky;top:0;z-index:3;}
 </style>
 </head>
 <body>
@@ -348,6 +373,7 @@ input[type=range]{width:100%;accent-color:var(--coral);cursor:pointer;}
     </div>
   </div>
 
+  <!-- Action filter bar -->
   <div class="filter-bar">
     <button class="fb-btn active" onclick="setFilter('all',this)">All</button>
     <button class="fb-btn" onclick="setFilter('up',this)">↑ Bid Up</button>
@@ -357,9 +383,35 @@ input[type=range]{width:100%;accent-color:var(--coral);cursor:pointer;}
     <button class="fb-btn" onclick="setFilter('error',this)">✗ Errors</button>
   </div>
 
+  <!-- Advertiser multi-select dropdown -->
+  <div class="adv-dropdown-wrap" id="adv-dropdown-wrap">
+    <div class="adv-dropdown-trigger" id="adv-trigger" onclick="toggleAdvDropdown()">
+      <span class="adt-label" id="adv-trigger-label">All Clients</span>
+      <span class="adt-badge" id="adv-trigger-badge" style="display:none;"></span>
+      <span class="adt-arrow">▼</span>
+    </div>
+    <div class="adv-dropdown-menu" id="adv-dropdown-menu">
+      <div class="adv-dd-header">
+        <button onclick="selectAllAdvs();event.stopPropagation()">Select All</button>
+        <button onclick="clearAllAdvs();event.stopPropagation()">Clear All</button>
+      </div>
+      <div class="adv-dd-list" id="adv-dd-list"></div>
+    </div>
+  </div>
+
   <div class="card">
     <div class="ct">Line Items</div>
-    <div style="overflow-x:auto;">
+
+    <!-- Toolbar: check all/none + scroll buttons -->
+    <div class="table-toolbar">
+      <button class="scroll-btn" onclick="checkAllVisible(true)">☑ Check All</button>
+      <button class="scroll-btn" onclick="checkAllVisible(false)">☐ Uncheck All</button>
+      <div style="flex:1;"></div>
+      <button class="scroll-btn" onclick="document.getElementById('tbl-wrap').scrollTop=0">↑ Top</button>
+      <button class="scroll-btn" onclick="document.getElementById('tbl-wrap').scrollTop=document.getElementById('tbl-wrap').scrollHeight">↓ Bottom</button>
+    </div>
+
+    <div class="tbl-wrap" id="tbl-wrap">
       <table class="rev-table">
         <thead>
           <tr>
@@ -376,13 +428,14 @@ input[type=range]{width:100%;accent-color:var(--coral);cursor:pointer;}
             <th>BQ CPM</th>
             <th>Live Bid</th>
             <th>New Bid</th>
-
+            <th>Action</th>
+            <th>Type</th>
           </tr>
         </thead>
         <tbody id="review-tbody"></tbody>
       </table>
     </div>
-    <div style="margin-top:20px;display:flex;gap:12px;align-items:center;flex-wrap:wrap;">
+    <div style="margin-top:16px;display:flex;gap:12px;align-items:center;flex-wrap:wrap;">
       <button class="btn bp" onclick="goToPush()">Push Selected →</button>
       <button class="btn" onclick="exportAuditCSV()">↓ Export Audit CSV</button>
       <span id="sel-count" style="font-family:var(--mono);font-size:10px;color:var(--ink3);margin-left:auto;"></span>
@@ -448,7 +501,8 @@ const S = {
   LIs: [],
   accepted: {},
   pushReceipt: null,
-  currentFilter: 'all'
+  currentFilter: 'all',
+  selectedAdvs: new Set()  // empty = all advertisers
 };
 
 const FLOOR_MICROS   = 500000;
@@ -856,9 +910,115 @@ function renderReview() {
 
   // Auto-select all actionable LIs on load
   S.LIs.forEach(li => { if (li.action === 'up' || li.action === 'down') S.accepted[li.liId] = true; });
+  S.selectedAdvs.clear();
+  renderAdvDropdown();
   renderReviewTable(S.currentFilter);
   updateSelCount();
   document.getElementById('chk-all').checked = true;
+}
+
+// ── ADVERTISER DROPDOWN ───────────────────────────────────────────────────────
+function renderAdvDropdown() {
+  const advs = [...new Set(S.LIs.map(l => l.advertiser))].sort();
+  const list = document.getElementById('adv-dd-list');
+  list.innerHTML = '';
+  advs.forEach(adv => {
+    const checked = S.selectedAdvs.has(adv);
+    const item = document.createElement('div');
+    item.className = 'adv-dd-item' + (checked ? ' checked' : '');
+    item.dataset.adv = adv;
+    item.innerHTML =
+      '<input type="checkbox" ' + (checked ? 'checked' : '') + '>' +
+      '<span class="adv-dd-name">' + esc(adv) + '</span>';
+    item.addEventListener('click', function(e) {
+      e.stopPropagation();
+      const cb = this.querySelector('input');
+      if (e.target !== cb) cb.checked = !cb.checked;
+      toggleAdv(this.dataset.adv, this, cb.checked);
+    });
+    list.appendChild(item);
+  });
+  updateAdvTriggerLabel();
+}
+
+function toggleAdvDropdown() {
+  const trigger = document.getElementById('adv-trigger');
+  const menu    = document.getElementById('adv-dropdown-menu');
+  const isOpen  = menu.classList.contains('open');
+  if (!isOpen) renderAdvDropdown();
+  menu.classList.toggle('open', !isOpen);
+  trigger.classList.toggle('open', !isOpen);
+}
+
+function toggleAdv(adv, itemEl, isChecked) {
+  if (isChecked) S.selectedAdvs.add(adv);
+  else S.selectedAdvs.delete(adv);
+  itemEl.classList.toggle('checked', isChecked);
+  updateAdvTriggerLabel();
+  renderReviewTable(S.currentFilter);
+  updateSelCount();
+}
+
+function selectAllAdvs() {
+  const advs = [...new Set(S.LIs.map(l => l.advertiser))];
+  advs.forEach(a => S.selectedAdvs.add(a));
+  renderAdvDropdown();
+  renderReviewTable(S.currentFilter);
+  updateSelCount();
+}
+
+function clearAllAdvs() {
+  S.selectedAdvs.clear();
+  renderAdvDropdown();
+  renderReviewTable(S.currentFilter);
+  updateSelCount();
+}
+
+function updateAdvTriggerLabel() {
+  const n      = S.selectedAdvs.size;
+  const label  = document.getElementById('adv-trigger-label');
+  const badge  = document.getElementById('adv-trigger-badge');
+  if (n === 0) {
+    label.textContent = 'All Clients';
+    badge.style.display = 'none';
+  } else if (n === 1) {
+    label.textContent = [...S.selectedAdvs][0];
+    badge.style.display = 'none';
+  } else {
+    label.textContent = n + ' clients selected';
+    badge.textContent = n;
+    badge.style.display = '';
+  }
+}
+
+// Close dropdown when clicking outside
+document.addEventListener('click', e => {
+  const wrap = document.getElementById('adv-dropdown-wrap');
+  if (wrap && !wrap.contains(e.target)) {
+    document.getElementById('adv-dropdown-menu')?.classList.remove('open');
+    document.getElementById('adv-trigger')?.classList.remove('open');
+  }
+});
+
+// Check/uncheck only currently visible (filtered) actionable rows
+function checkAllVisible(val) {
+  getFilteredLIs().forEach(li => {
+    if (li.action === 'up' || li.action === 'down') S.accepted[li.liId] = val;
+  });
+  renderReviewTable(S.currentFilter);
+  updateSelCount();
+}
+
+function getFilteredLIs() {
+  let list = S.selectedAdvs.size > 0
+    ? S.LIs.filter(l => S.selectedAdvs.has(l.advertiser))
+    : S.LIs;
+  if (S.currentFilter === 'up')    return list.filter(l => l.action === 'up');
+  if (S.currentFilter === 'down')  return list.filter(l => l.action === 'down');
+  if (S.currentFilter === 'eol')   return list.filter(l => l.action === 'eol');
+  if (S.currentFilter === 'error') return list.filter(l => l.action === 'error');
+  if (S.currentFilter === 'hold')  return list.filter(l => l.action === 'hold');
+  return list;
 }
 
 function metHtml(label, val, color) {
@@ -871,15 +1031,11 @@ function setFilter(f, el) {
   document.querySelectorAll('.fb-btn').forEach(b => b.classList.remove('active'));
   el.classList.add('active');
   renderReviewTable(f);
+  updateSelCount();
 }
 
 function renderReviewTable(filter) {
-  const list = filter === 'all'   ? S.LIs
-    : filter === 'up'    ? S.LIs.filter(l => l.action === 'up')
-    : filter === 'down'  ? S.LIs.filter(l => l.action === 'down')
-    : filter === 'eol'   ? S.LIs.filter(l => l.action === 'eol')
-    : filter === 'error' ? S.LIs.filter(l => l.action === 'error')
-    : S.LIs.filter(l => l.action === 'hold');
+  const list = getFilteredLIs();
 
   document.getElementById('review-tbody').innerHTML = list.map(li => {
     const canAct   = li.action === 'up' || li.action === 'down';
